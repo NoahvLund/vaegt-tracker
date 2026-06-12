@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1120">
+  <title>Vægt Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vægt">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1 id="pageTitle">Vægt</h1>
+        <p class="sub" id="streak">Daglig tracking</p>
+      </div>
+      <button class="icon-btn" id="settingsBtn" aria-label="Indstillinger">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <!-- ============ WEIGHT PAGE ============ -->
+    <div id="page-weight" class="page">
+
+    <!-- Reminder banner -->
+    <div class="reminder-banner" id="reminderBanner" hidden>
+      <span>☀️ Husk at veje dig i dag</span>
+      <button id="reminderDismiss" aria-label="Luk">✕</button>
+    </div>
+
+    <!-- Today's entry -->
+    <section class="card entry">
+      <div class="entry-top">
+        <label for="weight" id="entryLabel">Dagens vægt</label>
+        <span class="today-badge" id="todayBadge" hidden></span>
+      </div>
+      <div class="input-row">
+        <input type="number" id="weight" inputmode="decimal" step="0.1" min="0" placeholder="0,0">
+        <span class="unit">kg</span>
+        <button id="saveBtn">Gem</button>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats">
+      <div class="card stat">
+        <span class="stat-label">7-dages snit</span>
+        <span class="stat-value" id="avg7">–</span>
+        <span class="stat-trend" id="trend7"></span>
+      </div>
+      <div class="card stat">
+        <span class="stat-label">Tempo</span>
+        <span class="stat-value" id="rate">–</span>
+        <span class="stat-trend" id="rateSub">kg / uge</span>
+      </div>
+    </section>
+
+    <!-- BMI -->
+    <section class="card bmi-card" id="bmiCard" hidden>
+      <div class="bmi-head">
+        <h2>BMI</h2>
+        <span class="bmi-cat" id="bmiCat"></span>
+      </div>
+      <div class="bmi-value"><span id="bmiValue">–</span><small id="bmiSub"></small></div>
+      <div class="bmi-scale"><div class="bmi-marker" id="bmiMarker"></div></div>
+      <div class="bmi-scale-labels"><span>15</span><span>18,5</span><span>25</span><span>30</span><span>35</span></div>
+    </section>
+    <button class="card goal-prompt" id="bmiPrompt" hidden>📏 Indtast din højde i indstillinger for at se BMI</button>
+
+    <!-- Goal progress -->
+    <section class="card goal-card" id="goalCard" hidden>
+      <div class="goal-head">
+        <h2>Mål</h2>
+        <button class="goal-target-btn" id="goalEditBtn" aria-label="Rediger mål">
+          <span class="goal-target" id="goalTarget"></span>
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="goal-edit-row" id="goalEditRow" hidden>
+        <input type="number" id="goalEditInput" inputmode="decimal" step="0.1" min="0" placeholder="Mål i kg">
+        <span class="unit-sm">kg</span>
+        <button id="goalEditSave">Gem</button>
+        <button id="goalEditCancel" class="goal-cancel" aria-label="Annullér">✕</button>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="goal-meta">
+        <span id="goalStart"></span>
+        <span id="goalRemaining"></span>
+      </div>
+      <p class="goal-eta" id="goalEta"></p>
+    </section>
+
+    <!-- Set goal prompt -->
+    <button class="card goal-prompt" id="setGoalPrompt" hidden>
+      🎯 Sæt et mål for at se dine fremskridt
+    </button>
+
+    <!-- Eating guidance (mirrors the Mad page) -->
+    <section class="card guidance" id="guidanceCardW" hidden>
+      <div class="guidance-icon" id="guidanceIconW">💡</div>
+      <p id="guidanceTextW"></p>
+    </section>
+
+    <!-- Chart -->
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Udvikling</h2>
+        <div class="range-toggle" id="rangeToggle">
+          <button data-range="30" class="active">30d</button>
+          <button data-range="90">90d</button>
+          <button data-range="0">Alt</button>
+        </div>
+      </div>
+      <canvas id="chart" height="210"></canvas>
+      <p class="chart-legend">
+        <span class="dot raw"></span> Daglig
+        <span class="dot avg"></span> 7-dages snit
+        <span class="dot goal" id="goalLegend" hidden></span><span id="goalLegendTxt" hidden>Mål</span>
+      </p>
+    </section>
+
+    <!-- History -->
+    <section class="card">
+      <h2>Historik</h2>
+      <ul class="history" id="history"></ul>
+      <div class="empty" id="emptyMsg">
+        <div class="empty-icon">⚖️</div>
+        <p>Ingen målinger endnu.<br>Indtast din vægt ovenfor for at komme i gang.</p>
+      </div>
+    </section>
+
+    </div><!-- /page-weight -->
+
+    <!-- ============ MEALS PAGE ============ -->
+    <div id="page-meals" class="page" hidden>
+
+      <!-- Date navigation -->
+      <div class="date-nav">
+        <button class="date-btn" id="mealPrev" aria-label="Forrige dag">‹</button>
+        <button class="date-label" id="mealDateLabel">I dag</button>
+        <button class="date-btn" id="mealNext" aria-label="Næste dag">›</button>
+      </div>
+
+      <!-- Daily totals -->
+      <section class="card day-totals">
+        <div class="dt-main">
+          <span class="dt-kcal" id="dayKcal">0</span>
+          <span class="dt-unit">kcal i alt</span>
+        </div>
+        <div class="macro-row">
+          <div class="macro-chip prot"><span id="dayProtein">0</span><small>Protein</small></div>
+          <div class="macro-chip fat"><span id="dayFat">0</span><small>Fedt</small></div>
+          <div class="macro-chip carb"><span id="dayCarbs">0</span><small>Kulhydrat</small></div>
+        </div>
+      </section>
+
+      <!-- Eating guidance -->
+      <section class="card guidance" id="guidanceCard" hidden>
+        <div class="guidance-icon" id="guidanceIcon">💡</div>
+        <p id="guidanceText"></p>
+      </section>
+
+      <!-- Meals list (rendered by JS) -->
+      <div id="mealsList"></div>
+
+      <!-- Empty state -->
+      <div class="empty" id="mealsEmpty" hidden>
+        <div class="empty-icon">🍽️</div>
+        <p>Ingen måltider for denne dag.<br>Tilføj dit første måltid nedenfor.</p>
+      </div>
+
+      <!-- Add meal -->
+      <div class="add-meal-row" id="addMealRow">
+        <button class="quick-meal" data-name="Morgenmad">Morgenmad</button>
+        <button class="quick-meal" data-name="Frokost">Frokost</button>
+        <button class="quick-meal" data-name="Aftensmad">Aftensmad</button>
+        <button class="quick-meal" data-name="Snack">Snack</button>
+        <button class="quick-meal custom" id="customMealBtn">+ Eget navn</button>
+      </div>
+
+      <!-- Saved meals / dishes -->
+      <div class="saved-meals" id="savedMeals" hidden>
+        <p class="saved-meals-label">⭐ Dine gemte retter</p>
+        <div class="add-meal-row" id="savedMealsRow"></div>
+      </div>
+
+    </div><!-- /page-meals -->
+  </div>
+
+  <!-- Bottom tab bar -->
+  <nav class="tabbar">
+    <button class="tab active" data-page="weight">
+      <span class="tab-icon">⚖️</span><span>Vægt</span>
+    </button>
+    <button class="tab" data-page="meals">
+      <span class="tab-icon">🍽️</span><span>Mad</span>
+    </button>
+  </nav>
+
+  <!-- Settings sheet -->
+  <div class="sheet-overlay" id="sheetOverlay" hidden></div>
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <h2>Indstillinger</h2>
+      <button class="icon-btn" id="sheetClose" aria-label="Luk">✕</button>
+    </div>
+
+    <div class="setting">
+      <label for="goalInput">Mål-vægt</label>
+      <div class="setting-input">
+        <input type="number" id="goalInput" inputmode="decimal" step="0.1" placeholder="—">
+        <span class="unit-sm">kg</span>
+      </div>
+    </div>
+
+    <div class="setting">
+      <label for="heightInput">Højde <span class="label-sub">(til BMI)</span></label>
+      <div class="setting-input">
+        <input type="number" id="heightInput" inputmode="numeric" step="1" placeholder="—">
+        <span class="unit-sm">cm</span>
+      </div>
+    </div>
+
+    <div class="setting">
+      <label>Kost-strategi</label>
+      <div class="strategy-toggle" id="strategyToggle">
+        <button data-strat="cut">Vægttab</button>
+        <button data-strat="maintain">Vedligehold</button>
+        <button data-strat="gain">Opbygning</button>
+      </div>
+    </div>
+
+    <div class="setting" id="tempoRow" hidden>
+      <label for="tempoInput">Ønsket tempo</label>
+      <div class="setting-input">
+        <input type="number" id="tempoInput" inputmode="decimal" step="0.05" min="0" placeholder="0,0">
+        <span class="unit-sm">kg/uge</span>
+      </div>
+      <p class="setting-hint" id="tempoHint"></p>
+    </div>
+
+    <div class="setting toggle-row">
+      <div>
+        <label for="reminderToggle">Daglig påmindelse</label>
+        <p class="setting-hint">Få besked om at veje dig</p>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="reminderToggle">
+        <span class="slider-sw"></span>
+      </label>
+    </div>
+
+    <div class="setting" id="reminderTimeRow" hidden>
+      <label for="reminderTime">Tidspunkt</label>
+      <div class="setting-input">
+        <input type="time" id="reminderTime" value="07:30">
+      </div>
+    </div>
+    <p class="setting-note" id="notifNote" hidden></p>
+
+    <button class="food-save sheet-save" id="settingsSave">✓ Gem indstillinger</button>
+
+    <div class="sheet-actions">
+      <button class="ghost" id="exportBtn">⬇ Eksportér CSV</button>
+      <button class="ghost" id="importBtn">⬆ Importér CSV</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="ghost danger" id="clearBtn">Ryd alle data</button>
+    </div>
+    <input type="file" id="importFile" accept=".csv,text/csv" hidden>
+    <p class="sheet-foot">Alt gemmes lokalt på din telefon · v2<br>Tip: Eksportér af og til som backup</p>
+  </div>
+
+  <!-- Food entry sheet -->
+  <div class="sheet-overlay" id="foodOverlay" hidden></div>
+  <div class="sheet" id="foodSheet" hidden>
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <h2 id="foodSheetTitle">Tilføj fødevare</h2>
+      <button class="icon-btn" id="foodSheetClose" aria-label="Luk">✕</button>
+    </div>
+
+    <div class="recent-foods" id="recentFoods" hidden></div>
+
+    <div class="setting">
+      <label for="foodName">Navn</label>
+      <div class="setting-input">
+        <input type="text" id="foodName" placeholder="fx Kogt ris (150 g)" autocomplete="off" list="foodLibList">
+        <datalist id="foodLibList"></datalist>
+      </div>
+    </div>
+
+    <div class="macro-grid">
+      <div class="macro-field kcal">
+        <label for="foodKcal">Kalorier</label>
+        <div class="mf-input"><input type="number" id="foodKcal" inputmode="numeric" min="0" placeholder="0"><span>kcal</span></div>
+      </div>
+      <div class="macro-field prot">
+        <label for="foodProtein">Protein</label>
+        <div class="mf-input"><input type="number" id="foodProtein" inputmode="decimal" min="0" placeholder="0"><span>g</span></div>
+      </div>
+      <div class="macro-field fat">
+        <label for="foodFat">Fedt</label>
+        <div class="mf-input"><input type="number" id="foodFat" inputmode="decimal" min="0" placeholder="0"><span>g</span></div>
+      </div>
+      <div class="macro-field carb">
+        <label for="foodCarbs">Kulhydrat</label>
+        <div class="mf-input"><input type="number" id="foodCarbs" inputmode="decimal" min="0" placeholder="0"><span>g</span></div>
+      </div>
+    </div>
+
+    <button class="food-save" id="foodSave">Gem fødevare</button>
+    <button class="ghost danger food-delete" id="foodDelete" hidden>Slet fødevare</button>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
