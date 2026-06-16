@@ -584,13 +584,31 @@ function setMeals(date, meals) {
 const FOODS_KEY = 'vaegt-foods-v1';
 function loadFoodLib() { try { return JSON.parse(localStorage.getItem(FOODS_KEY) || '[]') || []; } catch { return []; } }
 function saveFoodLib(arr) { localStorage.setItem(FOODS_KEY, JSON.stringify(arr.slice(0, 60))); }
-function rememberFood(food) {
-  const lib = loadFoodLib().filter(f => f.name.toLowerCase() !== food.name.toLowerCase());
-  lib.unshift({ name: food.name, kcal: food.kcal, protein: food.protein, fat: food.fat, carbs: food.carbs });
+function rememberFood(name, per100) {
+  const lib = loadFoodLib().filter(f => f.name.toLowerCase() !== name.toLowerCase());
+  lib.unshift({ name, per100: { kcal: num(per100.kcal), protein: num(per100.protein), fat: num(per100.fat), carbs: num(per100.carbs) } });
   saveFoodLib(lib);
 }
 function findInLib(name) {
   return loadFoodLib().find(f => f.name.toLowerCase() === name.trim().toLowerCase()) || null;
+}
+// Per-100g model with backward-compat for older absolute-value entries.
+function libPer100(item) {
+  if (item && item.per100) return item.per100;
+  return { kcal: num(item.kcal), protein: num(item.protein), fat: num(item.fat), carbs: num(item.carbs) };
+}
+function foodPer100(food) {
+  if (food && food.per100) return food.per100;
+  return { kcal: num(food.kcal), protein: num(food.protein), fat: num(food.fat), carbs: num(food.carbs) };
+}
+function computeFromPer100(per100, grams) {
+  const r = grams / 100;
+  return {
+    kcal: Math.round(per100.kcal * r),
+    protein: Math.round(per100.protein * r * 10) / 10,
+    fat: Math.round(per100.fat * r * 10) / 10,
+    carbs: Math.round(per100.carbs * r * 10) / 10,
+  };
 }
 
 // Saved meal templates ("retter") — remember meal names + their foods for re-use.
@@ -689,7 +707,7 @@ function renderMealCard(meal) {
     <li class="food" data-food="${f.id}">
       <div class="food-info">
         <span class="food-name">${esc(f.name)}</span>
-        <span class="food-macros"><span class="m-prot">P ${fmtNum(num(f.protein))}</span> · <span class="m-fat">F ${fmtNum(num(f.fat))}</span> · <span class="m-carb">K ${fmtNum(num(f.carbs))}</span></span>
+        <span class="food-macros">${f.grams ? `<span class="m-grams">${fmtNum(f.grams)} g</span> · ` : ''}<span class="m-prot">P ${fmtNum(num(f.protein))}</span> · <span class="m-fat">F ${fmtNum(num(f.fat))}</span> · <span class="m-carb">K ${fmtNum(num(f.carbs))}</span></span>
       </div>
       <span class="food-kcal">${fmtNum(num(f.kcal))}<small>kcal</small></span>
     </li>`).join('') : '<p class="meal-empty">Ingen fødevarer endnu</p>';
@@ -754,24 +772,49 @@ function openFoodSheet(mealId, foodId) {
   foodCtx = { mealId, foodId: foodId || null };
   const food = foodId ? meal.foods.find(f => f.id === foodId) : null;
   document.getElementById('foodSheetTitle').textContent = food ? 'Rediger fødevare' : 'Tilføj fødevare';
+  const p = food ? foodPer100(food) : { kcal: '', protein: '', fat: '', carbs: '' };
   document.getElementById('foodName').value = food ? food.name : '';
-  document.getElementById('foodKcal').value = food && food.kcal ? food.kcal : '';
-  document.getElementById('foodProtein').value = food && food.protein ? food.protein : '';
-  document.getElementById('foodFat').value = food && food.fat ? food.fat : '';
-  document.getElementById('foodCarbs').value = food && food.carbs ? food.carbs : '';
+  document.getElementById('foodKcal').value = p.kcal || '';
+  document.getElementById('foodProtein').value = p.protein || '';
+  document.getElementById('foodFat').value = p.fat || '';
+  document.getElementById('foodCarbs').value = p.carbs || '';
+  document.getElementById('foodGrams').value = food ? (food.grams || 100) : 100;
   document.getElementById('foodDelete').hidden = !food;
   populateFoodLibUI(!food); // show recent chips only when adding new
+  updateFoodPreview();
   document.getElementById('foodOverlay').hidden = false;
   document.getElementById('foodSheet').hidden = false;
   setTimeout(() => document.getElementById('foodName').focus(), 50);
 }
 
-function fillFoodFields(f) {
-  document.getElementById('foodName').value = f.name;
-  document.getElementById('foodKcal').value = f.kcal || '';
-  document.getElementById('foodProtein').value = f.protein || '';
-  document.getElementById('foodFat').value = f.fat || '';
-  document.getElementById('foodCarbs').value = f.carbs || '';
+function fillFoodFields(item) {
+  document.getElementById('foodName').value = item.name;
+  const p = libPer100(item);
+  document.getElementById('foodKcal').value = p.kcal || '';
+  document.getElementById('foodProtein').value = p.protein || '';
+  document.getElementById('foodFat').value = p.fat || '';
+  document.getElementById('foodCarbs').value = p.carbs || '';
+  if (!num(document.getElementById('foodGrams').value)) document.getElementById('foodGrams').value = 100;
+  updateFoodPreview();
+}
+
+function updateFoodPreview() {
+  const per100 = {
+    kcal: num(document.getElementById('foodKcal').value),
+    protein: num(document.getElementById('foodProtein').value),
+    fat: num(document.getElementById('foodFat').value),
+    carbs: num(document.getElementById('foodCarbs').value),
+  };
+  const grams = num(document.getElementById('foodGrams').value);
+  const el = document.getElementById('foodPreview');
+  const empty = !per100.kcal && !per100.protein && !per100.fat && !per100.carbs;
+  if (grams <= 0 || empty) {
+    el.innerHTML = '<span class="fp-hint">Indtast indhold per 100 g + mængde</span>';
+    return;
+  }
+  const c = computeFromPer100(per100, grams);
+  el.innerHTML = `<span class="fp-amount">${fmtNum(grams)} g =</span> <b>${fmtNum(c.kcal)} kcal</b> · ` +
+    `<span class="m-prot">P ${fmtNum(c.protein)}</span> · <span class="m-fat">F ${fmtNum(c.fat)}</span> · <span class="m-carb">K ${fmtNum(c.carbs)}</span>`;
 }
 
 function populateFoodLibUI(showRecent) {
@@ -784,7 +827,7 @@ function populateFoodLibUI(showRecent) {
   if (!showRecent || !lib.length) { row.hidden = true; row.innerHTML = ''; return; }
   row.hidden = false;
   row.innerHTML = lib.slice(0, 12).map((f, i) =>
-    `<button class="recent-chip" data-lib="${i}">${esc(f.name)}<small>${fmtNum(f.kcal)} kcal</small></button>`).join('');
+    `<button class="recent-chip" data-lib="${i}">${esc(f.name)}<small>${fmtNum(libPer100(f).kcal)} kcal/100g</small></button>`).join('');
   row.querySelectorAll('.recent-chip').forEach(chip =>
     chip.addEventListener('click', () => fillFoodFields(lib[Number(chip.dataset.lib)])));
 }
@@ -795,13 +838,15 @@ function closeFoodSheet() {
 function saveFood() {
   const name = document.getElementById('foodName').value.trim();
   if (!name) { toast('Giv fødevaren et navn', true); return; }
-  const data = {
-    name,
+  const per100 = {
     kcal: num(document.getElementById('foodKcal').value),
     protein: num(document.getElementById('foodProtein').value),
     fat: num(document.getElementById('foodFat').value),
     carbs: num(document.getElementById('foodCarbs').value),
   };
+  const grams = num(document.getElementById('foodGrams').value);
+  if (grams <= 0) { toast('Angiv en mængde i gram', true); return; }
+  const data = { name, grams, per100, ...computeFromPer100(per100, grams) };
   const meals = getMeals(mealsDate);
   const meal = meals.find(m => m.id === foodCtx.mealId);
   if (!meal) { closeFoodSheet(); return; }
@@ -812,7 +857,7 @@ function saveFood() {
     meal.foods.push({ id: uid(), ...data });
   }
   setMeals(mealsDate, meals);
-  rememberFood(data);
+  rememberFood(name, per100);
   closeFoodSheet();
   renderMeals();
   toast('Fødevare gemt');
@@ -1036,16 +1081,21 @@ document.querySelectorAll('#strategyToggle button').forEach(b => b.addEventListe
   persistSettingsFromSheet();
 }));
 
-// Auto-fill macros when a known food name is typed
+// Auto-fill per-100g macros when a known food name is typed
 document.getElementById('foodName').addEventListener('input', e => {
   const match = findInLib(e.target.value);
   if (match) {
-    document.getElementById('foodKcal').value = match.kcal || '';
-    document.getElementById('foodProtein').value = match.protein || '';
-    document.getElementById('foodFat').value = match.fat || '';
-    document.getElementById('foodCarbs').value = match.carbs || '';
+    const p = libPer100(match);
+    document.getElementById('foodKcal').value = p.kcal || '';
+    document.getElementById('foodProtein').value = p.protein || '';
+    document.getElementById('foodFat').value = p.fat || '';
+    document.getElementById('foodCarbs').value = p.carbs || '';
+    updateFoodPreview();
   }
 });
+// Live preview as you type content / amount
+['foodKcal', 'foodProtein', 'foodFat', 'foodCarbs', 'foodGrams'].forEach(id =>
+  document.getElementById(id).addEventListener('input', updateFoodPreview));
 
 document.getElementById('goalEditBtn').addEventListener('click', openGoalEditor);
 document.getElementById('goalEditSave').addEventListener('click', saveGoalFromEditor);

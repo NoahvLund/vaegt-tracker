@@ -301,6 +301,7 @@
       </div>
     </div>
 
+    <p class="macro-grid-label">Indhold per 100 g</p>
     <div class="macro-grid">
       <div class="macro-field kcal">
         <label for="foodKcal">Kalorier</label>
@@ -319,6 +320,16 @@
         <div class="mf-input"><input type="number" id="foodCarbs" inputmode="decimal" min="0" placeholder="0"><span>g</span></div>
       </div>
     </div>
+
+    <div class="setting amount-row">
+      <label for="foodGrams">Mængde du spiser</label>
+      <div class="setting-input">
+        <input type="number" id="foodGrams" inputmode="numeric" min="0" step="1" placeholder="100">
+        <span class="unit-sm">g</span>
+      </div>
+    </div>
+
+    <div class="food-preview" id="foodPreview"></div>
 
     <button class="food-save" id="foodSave">Gem fødevare</button>
     <button class="ghost danger food-delete" id="foodDelete" hidden>Slet fødevare</button>

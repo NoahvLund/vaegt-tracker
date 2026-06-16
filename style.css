@@ -380,7 +380,20 @@ h2 { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
 .saved-meals-label { font-size: 13px; font-weight: 700; color: var(--muted); }
 
 /* ============ Food sheet ============ */
-.macro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 0; }
+.macro-grid-label { font-size: 13px; font-weight: 700; color: var(--muted); margin-top: 6px; }
+.macro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 10px 0 4px; }
+.amount-row { border-bottom: none; padding-bottom: 6px; }
+.food-preview {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 14px; font-size: 14px; font-weight: 600; margin: 4px 0 14px; text-align: center;
+}
+.food-preview b { font-size: 16px; }
+.food-preview .fp-amount { color: var(--faint); font-weight: 600; }
+.food-preview .fp-hint { color: var(--faint); font-weight: 500; }
+.food-preview .m-prot { color: var(--good); }
+.food-preview .m-fat { color: var(--gold); }
+.food-preview .m-carb { color: var(--accent); }
+.food-macros .m-grams { color: var(--text); font-weight: 600; }
 .macro-field { display: flex; flex-direction: column; gap: 6px; }
 .macro-field > label { font-size: 13px; font-weight: 600; color: var(--muted); }
 .mf-input { display: flex; align-items: center; gap: 6px; background: var(--card); border: 1.5px solid var(--border); border-radius: 12px; padding: 11px 13px; transition: border-color .2s; }
