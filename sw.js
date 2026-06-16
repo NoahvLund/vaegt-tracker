@@ -1,6 +1,6 @@
 // Service worker — network-first so code updates appear immediately,
 // with cache fallback so the app still works offline.
-const CACHE = 'vaegt-tracker-v11';
+const CACHE = 'vaegt-tracker-v12';
 const ASSETS = [
   './',
   './index.html',

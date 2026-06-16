@@ -291,6 +291,8 @@
       <button class="icon-btn" id="foodSheetClose" aria-label="Luk">✕</button>
     </div>
 
+    <button class="scan-btn" id="scanBtn">📷 Scan stregkode</button>
+
     <div class="recent-foods" id="recentFoods" hidden></div>
 
     <div class="setting">
@@ -333,6 +335,17 @@
 
     <button class="food-save" id="foodSave">Gem fødevare</button>
     <button class="ghost danger food-delete" id="foodDelete" hidden>Slet fødevare</button>
+  </div>
+
+  <!-- Barcode scanner overlay -->
+  <div class="scanner" id="scanner" hidden>
+    <div class="scanner-head">
+      <span>Scan stregkode</span>
+      <button class="icon-btn" id="scanClose" aria-label="Luk">✕</button>
+    </div>
+    <div id="scanReader" class="scan-reader"></div>
+    <p class="scan-status" id="scanStatus">Ret kameraet mod stregkoden…</p>
+    <p class="scan-note">Henter varens næringsindhold fra Open Food Facts · kræver internet</p>
   </div>
 
   <!-- Toast -->

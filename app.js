@@ -871,6 +871,93 @@ function deleteFood() {
   toast('Fødevare slettet');
 }
 
+// --- Barcode scanner -------------------------------------------------------
+// Lazy-loads html5-qrcode (camera + decoding, works on iOS Safari over https),
+// then looks the barcode up in Open Food Facts to auto-fill per-100g values.
+const SCAN_LIB_URL = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+let html5qr = null;
+let scanLibPromise = null;
+let scanBusy = false;
+const scannedCodes = new Set();
+
+function loadScanLib() {
+  if (window.Html5Qrcode) return Promise.resolve();
+  if (scanLibPromise) return scanLibPromise;
+  scanLibPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = SCAN_LIB_URL;
+    s.onload = resolve;
+    s.onerror = () => { scanLibPromise = null; reject(new Error('load failed')); };
+    document.head.appendChild(s);
+  });
+  return scanLibPromise;
+}
+
+async function openScanner() {
+  const status = document.getElementById('scanStatus');
+  scannedCodes.clear();
+  scanBusy = false;
+  document.getElementById('scanner').hidden = false;
+  status.textContent = 'Indlæser scanner…';
+  try {
+    await loadScanLib();
+  } catch {
+    status.textContent = 'Kunne ikke indlæse scanneren — tjek din internetforbindelse.';
+    return;
+  }
+  status.textContent = 'Ret kameraet mod stregkoden…';
+  try {
+    const fmts = window.Html5QrcodeSupportedFormats;
+    const config = { fps: 10, qrbox: { width: 260, height: 160 } };
+    if (fmts) config.formatsToSupport = [fmts.EAN_13, fmts.EAN_8, fmts.UPC_A, fmts.UPC_E];
+    html5qr = new Html5Qrcode('scanReader', { formatsToSupport: config.formatsToSupport });
+    await html5qr.start({ facingMode: 'environment' }, config, onBarcodeDetected, () => {});
+  } catch {
+    status.textContent = 'Kunne ikke åbne kameraet. Giv appen kamera-adgang i browserens indstillinger.';
+  }
+}
+
+async function closeScanner() {
+  if (html5qr) {
+    try { await html5qr.stop(); html5qr.clear(); } catch {}
+    html5qr = null;
+  }
+  document.getElementById('scanner').hidden = true;
+}
+
+function offNum(v) { const n = parseFloat(v); return isNaN(n) ? '' : Math.round(n * 10) / 10; }
+
+async function onBarcodeDetected(code) {
+  if (scanBusy || scannedCodes.has(code)) return;
+  scanBusy = true;
+  const status = document.getElementById('scanStatus');
+  status.textContent = `Fundet ${code} — slår op…`;
+  try {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands,nutriments`);
+    const data = await res.json();
+    if (data.status === 1 && data.product) {
+      const p = data.product, n = p.nutriments || {};
+      const name = [p.brands, p.product_name].filter(Boolean).join(' ').trim() || `Vare ${code}`;
+      await closeScanner();
+      document.getElementById('foodName').value = name;
+      document.getElementById('foodKcal').value = offNum(n['energy-kcal_100g']);
+      document.getElementById('foodProtein').value = offNum(n['proteins_100g']);
+      document.getElementById('foodFat').value = offNum(n['fat_100g']);
+      document.getElementById('foodCarbs').value = offNum(n['carbohydrates_100g']);
+      if (!num(document.getElementById('foodGrams').value)) document.getElementById('foodGrams').value = 100;
+      updateFoodPreview();
+      toast('Vare fundet ✓ — angiv mængde');
+    } else {
+      scannedCodes.add(code);
+      status.textContent = `Stregkode ${code} findes ikke i databasen. Tast den manuelt, eller scan en anden.`;
+      scanBusy = false;
+    }
+  } catch {
+    status.textContent = 'Opslag fejlede — tjek internet og prøv igen.';
+    scanBusy = false;
+  }
+}
+
 // Eating guidance — ties nutrition to the weight goal & actual tempo.
 function applyGuidance(g, cardId, iconId, textId) {
   const card = document.getElementById(cardId);
@@ -1165,6 +1252,8 @@ document.getElementById('foodSheetClose').addEventListener('click', closeFoodShe
 document.getElementById('foodOverlay').addEventListener('click', closeFoodSheet);
 document.getElementById('foodSave').addEventListener('click', saveFood);
 document.getElementById('foodDelete').addEventListener('click', deleteFood);
+document.getElementById('scanBtn').addEventListener('click', openScanner);
+document.getElementById('scanClose').addEventListener('click', closeScanner);
 
 if ('serviceWorker' in navigator) {
   // Auto-reload once when a new service worker takes control (new app version).

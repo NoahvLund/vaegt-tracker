@@ -394,6 +394,26 @@ h2 { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
 .food-preview .m-fat { color: var(--gold); }
 .food-preview .m-carb { color: var(--accent); }
 .food-macros .m-grams { color: var(--text); font-weight: 600; }
+
+/* ============ Barcode scanner ============ */
+.scan-btn {
+  width: 100%; background: var(--bg-soft); border: 1px solid var(--accent); color: var(--accent);
+  border-radius: 14px; font-size: 15px; font-weight: 700; padding: 13px; cursor: pointer; margin-bottom: 14px;
+  transition: transform .08s, background .2s;
+}
+.scan-btn:active { transform: scale(0.98); }
+.scanner {
+  position: fixed; inset: 0; z-index: 80; background: #000;
+  display: flex; flex-direction: column; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+.scanner-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; color: #fff; font-size: 17px; font-weight: 700;
+}
+.scan-reader { flex: 1; min-height: 0; overflow: hidden; background: #000; }
+.scan-reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+.scan-status { color: #fff; text-align: center; font-size: 15px; font-weight: 600; padding: 14px 18px 4px; }
+.scan-note { color: rgba(255,255,255,.55); text-align: center; font-size: 12px; padding: 0 18px 16px; }
 .macro-field { display: flex; flex-direction: column; gap: 6px; }
 .macro-field > label { font-size: 13px; font-weight: 600; color: var(--muted); }
 .mf-input { display: flex; align-items: center; gap: 6px; background: var(--card); border: 1.5px solid var(--border); border-radius: 12px; padding: 11px 13px; transition: border-color .2s; }
