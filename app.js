@@ -124,7 +124,6 @@ function render() {
   renderStats(entries);
   renderBMI(entries, settings);
   renderGoal(entries, settings);
-  renderGuidanceWeight();
   renderHistory(entries);
   renderChart(entries, settings);
   renderStreak(entries);
@@ -336,6 +335,24 @@ function renderHistory(entries) {
 
 // --- Chart (canvas, no dependencies) --------------------------------------
 
+/**
+ * Planned path from the current 7-day average to the goal. Uses the desired
+ * tempo from settings; falls back to the actual tempo if none/wrong direction.
+ */
+function goalPlan(entries, settings) {
+  const goal = settings.goalKg;
+  if (goal == null || !entries.length) return null;
+  const startDate = entries[entries.length - 1].date;
+  const startKg = rolling7Avg(entries, startDate);
+  const remaining = goal - startKg;
+  if (Math.abs(remaining) < 0.05) return null;
+  const strategy = settings.strategy || 'maintain';
+  let rate = strategy === 'maintain' ? 0 : (settings.desiredRate || 0);
+  if (!rate || Math.sign(rate) !== Math.sign(remaining)) rate = weeklyRate(entries);
+  if (rate == null || Math.abs(rate) < 0.05 || Math.sign(rate) !== Math.sign(remaining)) return null;
+  return { startDate, startKg, rate, days: Math.round(remaining / rate * 7) };
+}
+
 function renderChart(entries, settings) {
   const canvas = document.getElementById('chart');
   const ctx = canvas.getContext('2d');
@@ -367,8 +384,17 @@ function renderChart(entries, settings) {
   const avgSeries = data.map(e => rolling7Avg(entries, e.date));
   const goal = settings.goalKg;
 
+  // plan to goal: extend the x-axis into the future (at most as far as the visible past)
+  const lastDate = data[data.length - 1].date;
+  const plan = goalPlan(entries, settings);
+  const pastDays = Math.max(1, daysBetween(data[0].date, lastDate));
+  const futureDays = plan ? Math.min(plan.days, pastDays) : 0;
+  const planEndKg = plan ? plan.startKg + plan.rate / 7 * futureDays : null;
+  const axisEndDate = shiftDate(lastDate, futureDays);
+
   const allVals = data.map(e => e.kg).concat(avgSeries.filter(v => v != null));
   if (goal != null) allVals.push(goal);
+  if (plan) allVals.push(plan.startKg, planEndKg);
   let min = Math.min(...allVals), max = Math.max(...allVals);
   if (min === max) { min -= 1; max += 1; }
   const range = max - min;
@@ -376,9 +402,10 @@ function renderChart(entries, settings) {
   const span = max - min;
 
   const xMin = parseISO(data[0].date).getTime();
-  const xMax = parseISO(data[data.length - 1].date).getTime();
+  const xMax = parseISO(axisEndDate).getTime();
   const xSpan = Math.max(1, xMax - xMin);
-  const xOf = iso => P.l + ((parseISO(iso).getTime() - xMin) / xSpan) * plotW;
+  const xOfT = t => P.l + ((t - xMin) / xSpan) * plotW;
+  const xOf = iso => xOfT(parseISO(iso).getTime());
   const yOf = kg => P.t + (1 - (kg - min) / span) * plotH;
 
   // gridlines + labels
@@ -409,6 +436,40 @@ function renderChart(entries, settings) {
     ctx.fillText('mål', P.l + 3, gy - 4);
   }
 
+  // planned path with whole-kg milestones and their dates
+  if (plan && futureDays > 0) {
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([2, 4]);
+    ctx.beginPath();
+    ctx.moveTo(xOf(plan.startDate), yOf(plan.startKg));
+    ctx.lineTo(xOf(axisEndDate), yOf(planEndKg));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const dir = Math.sign(plan.rate);
+    const lo = Math.min(plan.startKg, planEndKg), hi = Math.max(plan.startKg, planEndKg);
+    const marks = [];
+    for (let kg = Math.ceil(lo + 1e-9); kg <= hi + 1e-9; kg++) {
+      if (Math.abs(kg - plan.startKg) > 0.15) marks.push(kg);
+    }
+    if (dir < 0) marks.reverse();
+    const stepEvery = Math.ceil(marks.length / 4) || 1;
+    ctx.font = '10px -apple-system, sans-serif';
+    marks.filter((_, i) => i % stepEvery === 0)
+      .forEach(kg => {
+        const date = shiftDate(plan.startDate, Math.round((kg - plan.startKg) / plan.rate * 7));
+        const x = xOf(date), y = yOf(kg);
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill();
+        const label = `${kg} · ${formatDate(date)}`;
+        const w = ctx.measureText(label).width;
+        const tx = Math.max(P.l, Math.min(cssW - P.r - w, x - w / 2));
+        ctx.textAlign = 'left';
+        ctx.fillText(label, tx, y + (dir < 0 ? 14 : -7));
+      });
+  }
+
   // area under avg
   const avgPts = data.map((e, i) => avgSeries[i] != null ? [xOf(e.date), yOf(avgSeries[i])] : null).filter(Boolean);
   if (avgPts.length > 1) {
@@ -432,9 +493,9 @@ function renderChart(entries, settings) {
   ctx.fillStyle = '#64748b'; ctx.font = '11px -apple-system, sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText(formatDate(data[0].date), P.l, cssH - 6);
-  if (data.length > 1) {
+  if (data.length > 1 || futureDays > 0) {
     ctx.textAlign = 'right';
-    ctx.fillText(formatDate(data[data.length - 1].date), cssW - P.r, cssH - 6);
+    ctx.fillText(formatDate(axisEndDate), cssW - P.r, cssH - 6);
   }
 }
 
@@ -987,13 +1048,6 @@ function applyGuidance(g, cardId, iconId, textId) {
 function renderGuidance(totals) {
   const g = computeGuidance(loadEntries(), loadSettings(), totals.kcal);
   applyGuidance(g, 'guidanceCard', 'guidanceIcon', 'guidanceText');
-}
-
-// Weight-page mirror — uses today's logged kcal.
-function renderGuidanceWeight() {
-  const todayKcal = dayTotals(getMeals(todayISO())).kcal;
-  const g = computeGuidance(loadEntries(), loadSettings(), todayKcal);
-  applyGuidance(g, 'guidanceCardW', 'guidanceIconW', 'guidanceTextW');
 }
 
 function computeGuidance(entries, settings, todayKcal) {

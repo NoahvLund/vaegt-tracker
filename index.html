@@ -63,18 +63,6 @@
       </div>
     </section>
 
-    <!-- BMI -->
-    <section class="card bmi-card" id="bmiCard" hidden>
-      <div class="bmi-head">
-        <h2>BMI</h2>
-        <span class="bmi-cat" id="bmiCat"></span>
-      </div>
-      <div class="bmi-value"><span id="bmiValue">–</span><small id="bmiSub"></small></div>
-      <div class="bmi-scale"><div class="bmi-marker" id="bmiMarker"></div></div>
-      <div class="bmi-scale-labels"><span>15</span><span>18,5</span><span>25</span><span>30</span><span>35</span></div>
-    </section>
-    <button class="card goal-prompt" id="bmiPrompt" hidden>📏 Indtast din højde i indstillinger for at se BMI</button>
-
     <!-- Goal progress -->
     <section class="card goal-card" id="goalCard" hidden>
       <div class="goal-head">
@@ -105,11 +93,17 @@
       🎯 Sæt et mål for at se dine fremskridt
     </button>
 
-    <!-- Eating guidance (mirrors the Mad page) -->
-    <section class="card guidance" id="guidanceCardW" hidden>
-      <div class="guidance-icon" id="guidanceIconW">💡</div>
-      <p id="guidanceTextW"></p>
+    <!-- BMI -->
+    <section class="card bmi-card" id="bmiCard" hidden>
+      <div class="bmi-head">
+        <h2>BMI</h2>
+        <span class="bmi-cat" id="bmiCat"></span>
+      </div>
+      <div class="bmi-value"><span id="bmiValue">–</span><small id="bmiSub"></small></div>
+      <div class="bmi-scale"><div class="bmi-marker" id="bmiMarker"></div></div>
+      <div class="bmi-scale-labels"><span>15</span><span>18,5</span><span>25</span><span>30</span><span>35</span></div>
     </section>
+    <button class="card goal-prompt" id="bmiPrompt" hidden>📏 Indtast din højde i indstillinger for at se BMI</button>
 
     <!-- Chart -->
     <section class="card chart-card">
@@ -125,7 +119,7 @@
       <p class="chart-legend">
         <span class="dot raw"></span> Daglig
         <span class="dot avg"></span> 7-dages snit
-        <span class="dot goal" id="goalLegend" hidden></span><span id="goalLegendTxt" hidden>Mål</span>
+        <span class="dot goal" id="goalLegend" hidden></span><span id="goalLegendTxt" hidden>Mål / plan</span>
       </p>
     </section>
 
