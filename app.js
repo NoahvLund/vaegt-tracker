@@ -78,8 +78,25 @@ function rolling7Avg(entries, endDate) {
   return window.reduce((s, e) => s + e.kg, 0) / window.length;
 }
 
-/** Weekly rate (kg/uge) via linear regression over the last `days` days. */
+/**
+ * Weekly rate (kg/uge): 7-day average now minus the 7-day average a week earlier
+ * (same as the "vs. forrige uge" trend). Needs >= MIN_WEEK_POINTS in each window,
+ * otherwise falls back to a regression over the last 14 days.
+ */
+const MIN_WEEK_POINTS = 4;
 function weeklyRate(entries, days = 14) {
+  if (entries.length < 2) return null;
+  const latest = entries[entries.length - 1].date;
+  const countIn = end => entries.filter(e => { const d = daysBetween(e.date, end); return d >= 0 && d < 7; }).length;
+  const prevEnd = shiftDate(latest, -7);
+  if (countIn(latest) >= MIN_WEEK_POINTS && countIn(prevEnd) >= MIN_WEEK_POINTS) {
+    return rolling7Avg(entries, latest) - rolling7Avg(entries, prevEnd);
+  }
+  return weeklyRateRegression(entries, days);
+}
+
+/** Fallback: linear regression over the last `days` days, in kg/uge. */
+function weeklyRateRegression(entries, days = 14) {
   if (entries.length < 2) return null;
   const end = parseISO(entries[entries.length - 1].date).getTime();
   const recent = entries.filter(e => (end - parseISO(e.date).getTime()) / 86400000 < days);
