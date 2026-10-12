@@ -3,6 +3,7 @@
 
 const ENTRIES_KEY = 'vaegt-tracker-v1';
 const SETTINGS_KEY = 'vaegt-settings-v1';
+const APP_VERSION = 'v15'; // keep in sync with CACHE in sw.js
 
 // --- Data layer -----------------------------------------------------------
 
@@ -124,6 +125,7 @@ function render() {
   renderStats(entries);
   renderBMI(entries, settings);
   renderGoal(entries, settings);
+  renderWeeks(entries, settings);
   renderHistory(entries);
   renderChart(entries, settings);
   renderStreak(entries);
@@ -293,6 +295,79 @@ function renderGoal(entries, settings) {
   } else {
     eta.textContent = `${pct.toFixed(0)}% af vejen`;
   }
+}
+
+// --- Week by week (Mon–Sun) -------------------------------------------------
+
+const WEEK_TOLERANCE = 0.15; // kg/uge from target still counts as "on target"
+
+function mondayOf(iso) { return shiftDate(iso, -((parseISO(iso).getDay() + 6) % 7)); }
+
+/** Calendar weeks (Mon–Sun) oldest → newest with avg weight and change vs the week before. */
+function weeklySummary(entries) {
+  const map = new Map();
+  entries.forEach(e => {
+    const m = mondayOf(e.date);
+    const w = map.get(m) || { monday: m, sum: 0, n: 0 };
+    w.sum += e.kg; w.n++; map.set(m, w);
+  });
+  return [...map.values()].sort((a, b) => a.monday.localeCompare(b.monday)).map(w => {
+    const prev = map.get(shiftDate(w.monday, -7));
+    return {
+      monday: w.monday, n: w.n, avg: w.sum / w.n,
+      prevN: prev ? prev.n : 0,
+      delta: prev ? w.sum / w.n - prev.sum / prev.n : null,
+    };
+  });
+}
+
+function renderWeeks(entries, settings) {
+  const card = document.getElementById('weekCard');
+  if (!entries.length) { card.hidden = true; return; }
+  card.hidden = false;
+
+  const strategy = settings.strategy || 'maintain';
+  const target = strategy === 'maintain' ? 0 : (settings.desiredRate || 0);
+  document.getElementById('weekTarget').textContent = `Mål ${fmtSigned(target)} kg/uge`;
+  document.getElementById('weekFoot').textContent =
+    `Ugens snit af dine vejninger, man–søn. Appversion ${APP_VERSION}.`;
+
+  const thisMonday = mondayOf(todayISO());
+  const weeks = weeklySummary(entries).slice(-6).reverse(); // newest first
+
+  // advice from the last completed week
+  const last = weeks.find(w => w.monday < thisMonday);
+  const adviceEl = document.getElementById('weekAdvice');
+  if (!last || last.delta == null || last.n < 3 || last.prevN < 3) {
+    adviceEl.innerHTML = 'Log mindst 3 vejninger i hver uge, så kan jeg sige om du skal spise mere eller mindre.';
+  } else {
+    const gap = target - last.delta; // + => spis mere
+    const txt = `Sidste uge ${fmtSigned(last.delta)} kg (mål ${fmtSigned(target)}).`;
+    const kcal = Math.round(Math.abs(gap) * KCAL_PER_KG / 7 / 50) * 50;
+    if (Math.abs(gap) <= WEEK_TOLERANCE) adviceEl.innerHTML = `✅ ${txt} Lige på målet — behold dit indtag.`;
+    else if (gap > 0) adviceEl.innerHTML = `🍚 ${txt} Spis ca. <b>+${kcal} kcal/dag</b> mere.`;
+    else adviceEl.innerHTML = `🥗 ${txt} Skær ca. <b>${kcal} kcal/dag</b>.`;
+  }
+
+  const ul = document.getElementById('weekList');
+  ul.innerHTML = '';
+  weeks.forEach(w => {
+    const current = w.monday >= thisMonday;
+    let delta = '<span class="h-delta flat">–</span>';
+    if (w.delta != null) {
+      const off = Math.abs(target - w.delta);
+      const cls = off <= WEEK_TOLERANCE ? 'down' : off <= 0.3 ? 'warn' : 'up';
+      delta = `<span class="h-delta ${cls}">${fmtSigned(w.delta)}</span>`;
+    }
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div>
+        <div class="h-date">${formatDate(w.monday)} – ${formatDate(shiftDate(w.monday, 6))}</div>
+        <div class="h-day">${current ? 'igangværende · ' : ''}${w.n} vejning${w.n === 1 ? '' : 'er'}</div>
+      </div>
+      <div class="h-right">${delta}<span class="h-weight">${fmtKg(w.avg)} kg</span></div>`;
+    ul.appendChild(li);
+  });
 }
 
 function renderHistory(entries) {
